@@ -40,8 +40,8 @@ The limiting factor is the needed time and compute power for display updating.
 
 ## next steps, bucket list
 - [x] auto scaling of display/ side indicator
-- [] calibration of sensors at start
-- [] documentation
-- [] testing
-- [] faster display handling
-- [] measure arduino nano performane and maybe switch to ESP32
+- [ ] calibration of sensors at start
+- [ ] documentation
+- [ ] testing
+- [ ] faster display handling
+- [ ] measure arduino nano performane and maybe switch to ESP32
