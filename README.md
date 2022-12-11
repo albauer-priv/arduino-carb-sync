@@ -28,17 +28,18 @@ Any sampling rate of 100-1,000 readings per second should be enough. I did not c
 
 ![prototype](/doc/20221211_110721.jpg)
 
-The display has an indicator for the high pressure side (triangle) and show a smoothed average reading for MAP (kPa) and ADC values.
+The display has an indicator for the high pressure side (triangle) and shows a smoothed average reading for MAP (kPa) and ADC values.
 
 ![display](/doc/20221211_110739.jpg)
 
 ### learnings
 
-The limiting factor using the nano is not sampling rate. Without freerunning mode for ADC reading it samples around 1,000 samples per second for each cylinder (I have two) while updating the display twice a second.
+The limiting factor using the nano is not sampling rate. Without freerunning mode for ADC reading, it samples around 1,000 samples per second for each cylinder (I have two) while updating the display twice a second.
 
 The limiting factor is the needed time and compute power for display updating.
 
 ## next steps, bucket list
+- [x] auto scaling of display/ side indicator
 - [] calibration of sensors at start
 - [] documentation
 - [] testing
