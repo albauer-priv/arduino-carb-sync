@@ -19,16 +19,7 @@ CarbSyncDisplayLCD::CarbSyncDisplayLCD() {
 }
 
 
-void CarbSyncDisplayLCD::setup(int cols, int rows) {
-    this->_TFTCols = cols;
-    this->_TFTRows = rows;
-
-
-    /*
-    _tft.begin();
-    _tft.setRotation(3);
-    _tft.background(0, 0, 0);
-    */
+void CarbSyncDisplayLCD::setup() {
 
     this->actDisplayData.differenceADCValue = 0.0;
     this->actDisplayData.differencekPaValue = 0.0;
@@ -39,8 +30,8 @@ void CarbSyncDisplayLCD::setup(int cols, int rows) {
     this->actDisplayData.minkPaValue[0] = 0.0;
     this->actDisplayData.minkPaValue[1] = 0.0;
     this->actDisplayData.lowerSideIndicator = 0;
-    this->actDisplayData.gaugeScaleFactor = 100;
-    this->actDisplayData.lastIndicatorXPos = 0;
+    this->actDisplayData.gaugeScaleFactor = 1;
+    this->actDisplayData.lastIndicatorXPos = 50;
 
 
     _tft.begin(UCG_FONT_MODE_SOLID);
@@ -184,19 +175,7 @@ void CarbSyncDisplayLCD::_showData(bool firstrun) {
     _tft.drawString(1, scale_box_yPos + scale_box_height + 5*line_height, 0, text);
 */
 
-    // "erase" triangle ...
-    _tft.drawTriangle(  actDisplayData.lastIndicatorXPos, scale_box_yPos + (scale_box_height/3) + 2, 
-                        actDisplayData.lastIndicatorXPos + 5, scale_box_yPos + scale_box_height -2, 
-                        actDisplayData.lastIndicatorXPos - 5, scale_box_yPos + scale_box_height -2);
-
-    // now it's time for black on white ...
-    _tft.setColor(1, 255, 255, 255);    // indedx 1 == white
-    _tft.setColor(0, 0, 0, 0);          // index 0 == black
-
-    
-    sprintf(text, "x%3d", actDisplayData.gaugeScaleFactor);
-    _tft.drawString((_tft.getWidth()-1)- (_tft.getStrWidth(text)) , scale_box_yPos + scale_box_height -3, 0, text);
-
+   
 
     trianglexPos = map(actDisplayData.differenceADCValue, 0, actDisplayData.gaugeScaleFactor * 4, 0, _tft.getWidth()/2);
 
@@ -205,11 +184,28 @@ void CarbSyncDisplayLCD::_showData(bool firstrun) {
     } else {
         trianglexPos = (_tft.getWidth()/2) - trianglexPos;
     }
-    actDisplayData.lastIndicatorXPos = trianglexPos;
 
-    _tft.drawTriangle(  trianglexPos, scale_box_yPos + (scale_box_height/3) + 2, 
-                        trianglexPos + 5, scale_box_yPos + scale_box_height -2, 
-                        trianglexPos - 5, scale_box_yPos + scale_box_height -2);
+
+    if (abs(trianglexPos - actDisplayData.lastIndicatorXPos) > 5) {
+
+        // "erase" triangle ...
+        _tft.drawTriangle(  actDisplayData.lastIndicatorXPos, scale_box_yPos + (scale_box_height/3) + 2, 
+                            actDisplayData.lastIndicatorXPos + 5, scale_box_yPos + scale_box_height -2, 
+                            actDisplayData.lastIndicatorXPos - 5, scale_box_yPos + scale_box_height -2);
+
+        // now it's time for black on white ...
+        _tft.setColor(1, 255, 255, 255);    // indedx 1 == white
+        _tft.setColor(0, 0, 0, 0);          // index 0 == black
+
+        sprintf(text, "x%3d", actDisplayData.gaugeScaleFactor);
+        _tft.drawString((_tft.getWidth()-1)- (_tft.getStrWidth(text)) , scale_box_yPos + scale_box_height -3, 0, text);
+
+
+        actDisplayData.lastIndicatorXPos = trianglexPos;
+        _tft.drawTriangle(  trianglexPos, scale_box_yPos + (scale_box_height/3) + 2, 
+                            trianglexPos + 5, scale_box_yPos + scale_box_height -2, 
+                            trianglexPos - 5, scale_box_yPos + scale_box_height -2);
+    }
 
 /*
     sprintf(text, "%3d", trianglexPos);

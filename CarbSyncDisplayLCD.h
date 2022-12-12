@@ -27,14 +27,13 @@ class CarbSyncDisplayLCD {
     public:
         CarbSyncDisplayLCD();
 
-        void setup(int cols, int rows);
+        // void setup(int cols, int rows);
+        void setup();
         void displaySplashScreen();
         void displaySyncScreen();
         void updateSyncScreen(CylinderManifoldAbsolutePressureData data[], int sizeOfData);
 
     private:
-        int _TFTCols;
-        int _TFTRows;
         // TFT _tft = TFT(TFT_CS, TFT_DC, TFT_RST);
         Ucglib_ST7735_18x128x160_HWSPI _tft = Ucglib_ST7735_18x128x160_HWSPI(/*cd=*/ TFT_DC, /*cs=*/ TFT_CS, /*reset=*/ TFT_RST);
 

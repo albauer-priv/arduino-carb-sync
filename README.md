@@ -40,7 +40,8 @@ The limiting factor is the needed time and compute power for display updating.
 
 ## next steps, bucket list
 - [x] auto scaling of display/ side indicator
-- [ ] calibration of sensors at start
+- [x] calibration of sensors at start
+- [ ] build calibration screen/ display 
 - [ ] documentation
 - [ ] testing
 - [ ] faster display handling

@@ -3,12 +3,6 @@
 // #include <ArduinoLog.h>
 
 
-// LCD geometry
-const int LCD_COLS = 20;
-const int LCD_ROWS = 4;
-
-
-
 /**
  * ERA 550492 MAP sensor or Bosch 0 261 230 289 or FACET 10.3195
  * The pressure sensor has the following specification at 5V supply;
@@ -24,8 +18,8 @@ const int LCD_ROWS = 4;
 
 
 
-#define ALPHA_SMOOTHING_RPM_VALUE 0.03
-#define ALPHA_SMOOTHING_ADC_VALUE 0.003
+#define ALPHA_SMOOTHING_RPM_VALUE 0.1
+#define ALPHA_SMOOTHING_ADC_VALUE 0.1
 
 // resolution of ADC. Arduino typically 1024, esp8266 or esp32 4096
 #define ADC_RESOLUTION 1024
@@ -37,22 +31,33 @@ const int LCD_ROWS = 4;
 #define MEASURE_UPDATE_INTERVALL_MS 1000
 
 
-CylinderManifoldAbsolutePressureData cylinders[2];
+#define NUMBER_OF_CYLINDERS 2
+
+CylinderManifoldAbsolutePressureData cylinders[NUMBER_OF_CYLINDERS];
 CarbSyncDisplayLCD display;
 
+uint8_t sensorPins[] = {A1, A3};
 
+unsigned long lastTimeStampDisplayUpdated = 0;
+unsigned long lastTimeStampSerialUpdated = 0;
+unsigned long lastTimeStampMeasure = 0;
+unsigned long actTimeStamp = 0;
+unsigned long measures = 0;
 
-
-// forward void writeLogHeaderToSerial();
-// forward void writeLogDataTiSerial();
 
 void setup() {
-  // put your setup code here, to run once:
-  Serial.begin(230400);
+  int maxSensorADCValueCalibration = 0;
+  int cylinderSmoothedADCValue[NUMBER_OF_CYLINDERS];
+
+  for (int i=0; i<NUMBER_OF_CYLINDERS; i++) {
+    pinMode(sensorPins[i], INPUT);
+  }
+
+  Serial.begin(115200);
   while(!Serial && !Serial.available()){}
   randomSeed(analogRead(0));
 
-  for (int i=0; i<2; i++) {
+  for (int i=0; i<NUMBER_OF_CYLINDERS; i++) {
     cylinders[i].setBoardCharacteristics(ADC_RESOLUTION, MAP_SENSOR_REFERENCE_MV);
     cylinders[i].setMAPSensorCharacteristics(MAP_SENSOR_MIN_MV, MAP_SENSOR_MAX_MV, MAP_SENSOR_MIN_KPA, MAP_SENSOR_MAX_KPA);
     cylinders[i].setMAPSensorOffset(0);
@@ -61,30 +66,47 @@ void setup() {
   }
 
 
+  // writeLogHeaderToSerial();
 
-  writeLogHeaderToSerial();
-
-  display.setup(LCD_COLS, LCD_ROWS);
+  // display.setup(LCD_COLS, LCD_ROWS);
+  display.setup();
   display.displaySyncScreen();
+
+  // "calibrate" sensors ...
+  for (int i=0; i<500; i++) {
+    for (int j=0; j < NUMBER_OF_CYLINDERS; j++) {
+      cylinders[j].setADCValue(analogRead(sensorPins[j]));
+    }
+  }
+
+
+  for (int i=0; i < NUMBER_OF_CYLINDERS; i++) {
+    cylinderSmoothedADCValue[i] = round(cylinders[i].getSmoothedADCValue());
+
+    if (cylinderSmoothedADCValue[i] > maxSensorADCValueCalibration) {
+      maxSensorADCValueCalibration = cylinderSmoothedADCValue[i];
+    }
+  }
+
+  for (int i=0; i < NUMBER_OF_CYLINDERS; i++) {
+    cylinders[i].resetMeasures();
+  }
+
+  for (int i=0; i < NUMBER_OF_CYLINDERS; i++) {
+    int cylinderADCValueOffset = maxSensorADCValueCalibration - cylinderSmoothedADCValue[i];
+    cylinders[i].setMAPSensorOffset(cylinderADCValueOffset);
+  }
 
 }
 
-int ADCValue[2] = {0, 0};
-
-unsigned long lastTimeStampDisplayUpdated = 0;
-unsigned long lastTimeStampSerialUpdated = 0;
-unsigned long lastTimeStampMeasure = 0;
-unsigned long actTimeStamp = 0;
-unsigned long measures = 0;
 
 void loop() {
 
-  ADCValue[0] = analogRead(A1);
-  ADCValue[1] = analogRead(A3);
-  measures++;
+  for (int i=0; i< NUMBER_OF_CYLINDERS; i++) {
+    cylinders[i].setADCValue(analogRead(sensorPins[i]));
+  }
 
-  cylinders[0].setADCValue(ADCValue[0]);
-  cylinders[1].setADCValue(ADCValue[1]);
+  measures++;
 
   actTimeStamp = millis();
 
@@ -95,23 +117,12 @@ void loop() {
 
   if ((actTimeStamp - lastTimeStampSerialUpdated) > SERIAL_UPDATE_INTERVALL_MS) {
     // writeLogDataToSerial();
-    /*
-    Serial.print("ADC: ");
-    Serial.print(ADCValue[0]);
-    Serial.print(" <-> ");
-    Serial.print(ADCValue[1]);
-    Serial.print(" MAP (kPa): ");
-    Serial.print(cylinders[0].getMAPValueAskPa());
-    Serial.print(" <-> ");
-    Serial.print(cylinders[1].getMAPValueAskPa());
-    Serial.println();
-    */
     lastTimeStampSerialUpdated = actTimeStamp;
   }
 
   if ((actTimeStamp - lastTimeStampMeasure) > MEASURE_UPDATE_INTERVALL_MS) {
-    Serial.print("measure per sec.: ");
-    Serial.println(measures);
+    // Serial.print("measure per sec.: ");
+    // Serial.println(measures);
     measures = 0;
     lastTimeStampMeasure = actTimeStamp;
   }
@@ -121,7 +132,20 @@ void loop() {
 
 
 void writeLogHeaderToSerial() {
-  Serial.println("timestamp;rpm;adc1;smoothedminadc1;minmap1kPa;smoothedminmap1kPa;adc2;smothedminadc2;minmap2kPa;smoothedminmap2kPa;");
+  Serial.print("timestamp;rpm");
+    for (int i=0; i < NUMBER_OF_CYLINDERS; i++) {
+      Serial.print(";ADC_");
+      Serial.print(i);
+      Serial.print(";minADC_");
+      Serial.print(i);
+      Serial.print(";smoothedMinADC_");
+      Serial.print(i);
+      Serial.print(";minMAPkPa_");
+      Serial.print(i);
+      Serial.print(";smoothedMinMAPkPa_");
+      Serial.print(i);
+    }
+  Serial.println(";");
 }
 
 void writeLogDataToSerial() {
@@ -131,7 +155,10 @@ void writeLogDataToSerial() {
   Serial.print(cylinders[0].getActualRPMValue());
   Serial.print(";");
 
-  for (int i=0; i<2; i++) {
+  for (int i=0; i < NUMBER_OF_CYLINDERS; i++) {
+    Serial.print(cylinders[i].getActualADCValue());
+    Serial.print(";");
+
     Serial.print(cylinders[i].getMinimumADCValue());
     Serial.print(";");
 

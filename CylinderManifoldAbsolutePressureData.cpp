@@ -13,12 +13,18 @@ CylinderManifoldAbsolutePressureData::CylinderManifoldAbsolutePressureData() {
     this->sensor.maxkPa = 0;
     this->sensor.minmV = 0;
     this->sensor.maxmV = 0;
-    this->sensor.sensorOffset = 0;
+    this->sensor.sensorADCOffset = 0;
 
     this->board.refVoltagemV = 0;
     this->board.stepsADCValues = 0;
     this->board.increasemVPerADCStep = 0.0;
 
+
+    this->resetMeasures();
+}
+
+
+void CylinderManifoldAbsolutePressureData::resetMeasures() {
     this->measures._minimumADCValueCandidate = 16384;
     this->measures._actualRPMValue = 0;
     this->measures._doCalculations = false;
@@ -29,8 +35,8 @@ CylinderManifoldAbsolutePressureData::CylinderManifoldAbsolutePressureData() {
     this->measures._minimumADCValue = 16384;
     this->measures._smoothingAlphaADC = 0.0;
     this->measures._smoothingAlphaRPM = 0.0;
+    this->measures._actualADCValue = 0;
     // this->measures._smoothingAlphaMAP = 0.0;
-
 }
 
 
@@ -41,15 +47,23 @@ void CylinderManifoldAbsolutePressureData::setMAPSensorCharacteristics (float mi
     this-> sensor.maxkPa = maximumkPa;
 };
 
-void CylinderManifoldAbsolutePressureData::setMAPSensorOffset (float offset) {
-    this->sensor.sensorOffset = offset;
+
+void CylinderManifoldAbsolutePressureData::setMAPSensorOffset (int offset) {
+    this->sensor.sensorADCOffset = offset;
 };
+
+
+int CylinderManifoldAbsolutePressureData::getMAPSensorOffset () {
+    return this->sensor.sensorADCOffset;
+};
+
 
 void CylinderManifoldAbsolutePressureData::setBoardCharacteristics (int stepsADC, float referenceVoltagemV) {
     this->board.stepsADCValues = stepsADC;
     this->board.refVoltagemV = referenceVoltagemV;
     this->board.increasemVPerADCStep = referenceVoltagemV / stepsADC;
 };
+
 
 void CylinderManifoldAbsolutePressureData::setSmoothingAlphaADC (float alpha) {
     this->measures._smoothingAlphaADC = alpha;
@@ -73,28 +87,28 @@ void CylinderManifoldAbsolutePressureData::setSmoothingAlphaMAP (float alpha) {
  * set new ADC value and calculate other dependant values
 */
 void CylinderManifoldAbsolutePressureData::setADCValue(int newADCValue) {
-    unsigned long timeStampDifference = 0;
+    unsigned long timeStampDifference = 0, actTimeStamp;
 
     //Serial.print("ADC Value: ");
     //Serial.println(newADCValue);
 
-    newADCValue = newADCValue + this->sensor.sensorOffset;
+    this->measures._actualADCValue = newADCValue + this->sensor.sensorADCOffset;
 
     // calculate smoothed ADC value using exponential smoothing 
     this->measures._smoothedADCValue =  ((1 - this->measures._smoothingAlphaADC) * this->measures._smoothedADCValue) + 
-                                        (this->measures._smoothingAlphaADC * newADCValue);
+                                        (this->measures._smoothingAlphaADC * this->measures._actualADCValue);
 
     
     // check if the new ADC value is smaller than the actual minimum value 
     // if it's smaller we found a new minimum
-    if (newADCValue < this->measures._minimumADCValueCandidate) {
-        this->measures._minimumADCValueCandidate = newADCValue;
+    if (this->measures._actualADCValue < this->measures._minimumADCValueCandidate) {
+        this->measures._minimumADCValueCandidate = this->measures._actualADCValue;
         this->measures._doCalculations = true;
 
         //Serial.print("ADC minimum candidate: ");
         //Serial.println(this->measures._minimumADCValueCandidate);
 
-    } else if (newADCValue > (this->measures._minimumADCValueCandidate + ADC_VALUE_EPSILON)) {
+    } else if (this->measures._actualADCValue > (this->measures._minimumADCValueCandidate + ADC_VALUE_EPSILON)) {
     // here we know, that the new ADC value is larger than our actual ADC value
     // we assume, that a new cycle of the engine has started
     // and the last ADC value was a minimal ADC value
@@ -116,7 +130,10 @@ void CylinderManifoldAbsolutePressureData::setADCValue(int newADCValue) {
 
             this->measures._minimumADCValueCandidate = this->board.stepsADCValues;
 
-            timeStampDifference = millis() - this->measures._minimumADCValueTimeStamp;
+
+            actTimeStamp = millis();
+
+            timeStampDifference = actTimeStamp - this->measures._minimumADCValueTimeStamp;
 
             // In a four-stroke engine that uses a camshaft, each valve is opened every second
             // rotation of the crankshaft. According to this the camshaft runs with half speed
@@ -129,7 +146,7 @@ void CylinderManifoldAbsolutePressureData::setADCValue(int newADCValue) {
             this->measures._smoothedRPMValue =  ((1 - this->measures._smoothingAlphaRPM) * this->measures._smoothedRPMValue) + 
                                                 (this->measures._smoothingAlphaRPM * this->measures._actualRPMValue);
 
-            this->measures._minimumADCValueTimeStamp = millis();
+            this->measures._minimumADCValueTimeStamp = actTimeStamp;
         }
     }
 };
@@ -139,6 +156,11 @@ float CylinderManifoldAbsolutePressureData::mapfloat(float x, float in_min, floa
 {
   return (x - in_min) * (out_max - out_min) / (in_max - in_min) + out_min;
 }
+
+
+int CylinderManifoldAbsolutePressureData::getActualADCValue() {
+    return this->measures._actualADCValue;
+};
 
 
 int CylinderManifoldAbsolutePressureData::getMinimumADCValue() {
@@ -157,6 +179,18 @@ float CylinderManifoldAbsolutePressureData::getSmoothedMinimumADCValue() {
 
 
 float CylinderManifoldAbsolutePressureData::getMinimumMAPValueAskPa() {
+/*
+    Serial.print("minimumADCValue: ");
+    Serial.println(this->measures._minimumADCValue);
+    Serial.print("reference Voltage mv: ");
+    Serial.println(this->board.refVoltagemV);
+    Serial.print("steps ADC value: ");
+    Serial.println(this->board.stepsADCValues);
+    Serial.print("sensor max kPa: ");
+    Serial.println(this->sensor.maxkPa);
+    Serial.print("sensor max mv: ");
+    Serial.println(this->sensor.minkPa);
+*/    
     return this->measures._minimumADCValue * this->board.refVoltagemV / this->board.stepsADCValues * this->sensor.maxkPa / this->sensor.maxmV;
 /*    
     return map(this->measures._minimumADCValue, 

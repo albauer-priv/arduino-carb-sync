@@ -24,7 +24,7 @@
 #define CYLINDERMANIFOLDABSOLUTEPRESSUREDATA_H
 
 
-// ADC epsilon, minimum difference to consider ADC as new value
+// ADC epsilon, minimum difference to consider ADC as potentially new minimum value
 #ifndef ADC_VALUE_EPSILON
     #define ADC_VALUE_EPSILON 10
 #endif
@@ -37,8 +37,10 @@ class CylinderManifoldAbsolutePressureData {
     public:
         CylinderManifoldAbsolutePressureData();
 
+        void resetMeasures();
         void setMAPSensorCharacteristics (float minimummV, float maximummV, float minimumkPa, float maximumkPa);
-        void setMAPSensorOffset (float offset);
+        void setMAPSensorOffset (int offset);
+        int  getMAPSensorOffset ();
 
         void setBoardCharacteristics (int stepsADC, float referenceVoltagemV);
 
@@ -48,6 +50,7 @@ class CylinderManifoldAbsolutePressureData {
 
         void setADCValue (int newADCValue);
 
+        int   getActualADCValue ();
         int   getMinimumADCValue ();
         float getSmoothedADCValue ();
         float getSmoothedMinimumADCValue ();
@@ -69,7 +72,7 @@ class CylinderManifoldAbsolutePressureData {
             float maxkPa;
             float minmV;
             float maxmV;
-            float sensorOffset;
+            int sensorADCOffset;
         } sensor;
 
         struct Board {
@@ -80,6 +83,7 @@ class CylinderManifoldAbsolutePressureData {
 
 
         struct Measures {
+            int _actualADCValue;
             int _minimumADCValueCandidate;
             int _minimumADCValue;
             int _actualRPMValue;
