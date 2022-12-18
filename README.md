@@ -14,7 +14,7 @@ some thoughts regarding sampling rate. Assumption: We want to balance carbs arou
 For each cylce (duration 720° or 2 rounds) we can observe that the MAP pressure will have a minimum and maximum. A kind of sine wave (simplified) (the picture was taken with Tunerstudio's MAP Logger).
 ![Visualization of MAP over time](/doc/2022-04-10%2010-04-33.jpg)
 
-Most interesting is the minumum value. Identifying the minimum should be possible with 10-100 samples per 4 stroke cycle. The more values the better you get cathing the minimum. 
+Most interesting is the minumum value. Identifying the minimum should be possible with 10-100 samples per 4 stroke cycle. The more values the better you get catching the minimum. 
 
 Any sampling rate of 100-1,000 readings per second should be enough. I did not consider Shannon et al.
 
@@ -36,7 +36,9 @@ The display has an indicator for the high pressure side (triangle) and shows a s
 
 The limiting factor using the nano is not sampling rate. Without freerunning mode for ADC reading, it samples around 1,000 samples per second for each cylinder (I have two) while updating the display twice a second.
 
-The limiting factor is the needed time and compute power for display updating.
+The limiting factor is the time needed and compute power for display updating.
+
+I could achieve around three screen updates per second ... and it looked awful.
 
 ## next steps, bucket list
 - [x] auto scaling of display/ side indicator
