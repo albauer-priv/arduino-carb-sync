@@ -29,7 +29,9 @@
     #define ADC_VALUE_EPSILON 10
 #endif
 
-
+#ifndef ADC_CONSIDER_NEW_VALUE
+    #define ADC_CONSIDER_NEW_VALUE 4
+#endif
 
 
 
@@ -38,14 +40,14 @@ class CylinderManifoldAbsolutePressureData {
         CylinderManifoldAbsolutePressureData();
 
         void resetMeasures();
-        void setMAPSensorCharacteristics (float minimummV, float maximummV, float minimumkPa, float maximumkPa);
+        void setMAPSensorCharacteristics (int minimummV, int maximummV, int minimumkPa, int maximumkPa);
         void setMAPSensorOffset (int offset);
         int  getMAPSensorOffset ();
 
-        void setBoardCharacteristics (int stepsADC, float referenceVoltagemV);
+        void setBoardCharacteristics (int stepsADC, int referenceVoltagemV);
 
-        void setSmoothingAlphaADC (float alpha);
-        void setSmoothingAlphaRPM (float alpha);
+        void setSmoothingAlphaADC (int alpha);
+        void setSmoothingAlphaRPM (int alpha);
         // void setSmoothingAlphaMAP (float alpha);
 
         void setADCValue (int newADCValue);
@@ -65,18 +67,20 @@ class CylinderManifoldAbsolutePressureData {
 
     private:
 
-        float mapfloat(float x, float in_min, float in_max, float out_min, float out_max);
+        float _mapfloat(float x, float in_min, float in_max, float out_min, float out_max);
+        void _dumpDataToSerial();
+        void _calculateBoardSensorFactor();
 
         struct MAPSensor {
-            float minkPa;
-            float maxkPa;
-            float minmV;
-            float maxmV;
+            int minkPa;
+            int maxkPa;
+            int minmV;
+            int maxmV;
             int sensorADCOffset;
         } sensor;
 
         struct Board {
-            float refVoltagemV;
+            int refVoltagemV;
             int stepsADCValues;
             float increasemVPerADCStep;
         } board;
@@ -84,17 +88,20 @@ class CylinderManifoldAbsolutePressureData {
 
         struct Measures {
             int _actualADCValue;
+            int _lastADCValue;
             int _minimumADCValueCandidate;
             int _minimumADCValue;
             int _actualRPMValue;
-            float _smoothingAlphaADC;
-            float _smoothingAlphaRPM;
+            int _smoothingAlphaADC;
+            int _smoothingAlphaRPM;
             // float _smoothingAlphaMAP;
             float _smoothedADCValue;
             float _smoothedMinimumADCValue;
             float _smoothedRPMValue;
             unsigned long   _minimumADCValueTimeStamp;
             bool _doCalculations;
+            float _boardSensorFactor;
+            bool _calcBoardSensorFactor;
         } measures;
 
 };

@@ -1,15 +1,11 @@
 #include "CarbSyncDisplayLCD.h"
 #include <SPI.h>
-// #include <TFT.h>
-#include <Ucglib.h>
+#include <TFT_eSPI.h>
+#include "Free_Fonts.h" // Include the header file attached to this sketch
 
 
-// #include <Adafruit_GFX.h>    // Core graphics library
-// #include <Adafruit_ST7735.h> // Hardware-specific library for ST7735
-// #include <SPI.h>
 
-
-const int scale_box_height = 45;
+const int scale_box_height = 72;
 const int scale_box_yPos = 0;
 const int line_height = 15;
 
@@ -34,16 +30,12 @@ void CarbSyncDisplayLCD::setup() {
     this->actDisplayData.lastIndicatorXPos = 50;
 
 
-    _tft.begin(UCG_FONT_MODE_SOLID);
-    _tft.clearScreen();
-
-    _tft.setRotate90();
-    _tft.setFont(ucg_font_courB12_mf);
-    _tft.setColor(0, 255, 255, 255); // indedx 0 == white
-    _tft.setColor(1, 0, 0, 0); // index 1 == black
-    _tft.setColor(2, 255, 0, 0); // index 2 == green
-    _tft.setColor(3, 255, 255, 0); // index 3 == yellow
-
+    _tft.init();
+    _tft.setRotation(1);
+    _tft.setFreeFont(FM12);
+    // _tft.setTextFont(FONT4);
+    // _tft.setTextSize(2);
+    _tft.fillScreen(TFT_BLACK);
 };
 
 void CarbSyncDisplayLCD::displaySplashScreen() {
@@ -51,30 +43,27 @@ void CarbSyncDisplayLCD::displaySplashScreen() {
 };
 
 void CarbSyncDisplayLCD::displaySyncScreen() {
-    char text[256];
+    // draw lower pressure side indicator box ...
+    // white rectangle 
+    _tft.fillRect(0, scale_box_yPos, _tft.width()-1, scale_box_height, TFT_WHITE);
 
-    _tft.setColor(0, 255, 255, 255); // indedx 0 == white
-    _tft.drawBox(0, scale_box_yPos,_tft.getWidth()-1, scale_box_height);
+    // separator line
+    _tft.drawLine(0,scale_box_yPos + (scale_box_height/3) ,_tft.width()-1, scale_box_yPos + (scale_box_height/3), TFT_BLACK);
 
-    _tft.setColor(0, 0, 0);
-    _tft.drawHLine(0,scale_box_yPos + (scale_box_height/3) ,_tft.getWidth()-1);
-
-    _tft.setColor(0, 0, 0);
-    for (int i=1; i<_tft.getWidth(); i++) {
+    // tick marks 
+    for (int i=1; i<_tft.width(); i++) {
         if ((i % 20) == 0) {
-            _tft.drawVLine(i, scale_box_yPos+1, (scale_box_height/3)-1);
+            _tft.drawLine(i, scale_box_yPos+1, i, (scale_box_height/3)-1, TFT_BLACK);
         }
     }
 
-    _tft.setColor(255, 0, 0);
-    _tft.drawBox((_tft.getWidth()/2)-1, scale_box_yPos+1, 3, (scale_box_height/3)-1);
+    // middle red tick
+    _tft.fillRect((_tft.width()/2)-1, scale_box_yPos+1, 3, (scale_box_height/3)-1, TFT_RED);
 
-
-    _showData(true);
-  
+    _showData(0, 0);
 };
 
-void CarbSyncDisplayLCD::updateSyncScreen(CylinderManifoldAbsolutePressureData data[], int sizeOfData) {
+void CarbSyncDisplayLCD::updateSyncScreen(CylinderManifoldAbsolutePressureData data[], int sizeOfData, int measuresPerSec) {
     // int scale, mapValue[2], rpmValue, mapValueDifference;
     int scaleMultiply[] = {1, 10, 100, 1000};
     int scaleBase[] = {1, 2, 5};
@@ -90,9 +79,9 @@ void CarbSyncDisplayLCD::updateSyncScreen(CylinderManifoldAbsolutePressureData d
     this->actDisplayData.differenceADCValue = abs(this->actDisplayData.minSmoothedADCValue[0] - this->actDisplayData.minSmoothedADCValue[1]);
     this->actDisplayData.differencekPaValue = abs(this->actDisplayData.minSmoothedkPaValue[0] - this->actDisplayData.minSmoothedkPaValue[1]);
 
-    if (this->actDisplayData.minSmoothedADCValue[0] < this->actDisplayData.minSmoothedADCValue[1]) {
+    if (this->actDisplayData.minSmoothedkPaValue[0] < this->actDisplayData.minSmoothedkPaValue[1]) {
         this->actDisplayData.lowerSideIndicator = -1;
-    } else if (this->actDisplayData.minSmoothedADCValue[0] > this->actDisplayData.minSmoothedADCValue[1]) {
+    } else if (this->actDisplayData.minSmoothedkPaValue[0] > this->actDisplayData.minSmoothedkPaValue[1]) {
         this->actDisplayData.lowerSideIndicator = 1;
     } else {
         this->actDisplayData.lowerSideIndicator = 0;
@@ -110,25 +99,36 @@ void CarbSyncDisplayLCD::updateSyncScreen(CylinderManifoldAbsolutePressureData d
             this->actDisplayData.gaugeScaleFactor = scaleBase[j] * scaleMultiply[i];
             j++;
 
-            exit = round(this->actDisplayData.differenceADCValue) < (4*this->actDisplayData.gaugeScaleFactor);
+            exit = round(this->actDisplayData.differencekPaValue) < (8*this->actDisplayData.gaugeScaleFactor);
         }
         i++;
     }
 
-    _showData(false);
+    _showData(measuresPerSec, data[0].getSmoothedRPMValue());
 };
 
 
-void CarbSyncDisplayLCD::_showData(bool firstrun) {
+
+
+void CarbSyncDisplayLCD::_showData(int measuresPerSec, int actualRPM) {
     char text[256];
+    char floatString[10];
+    char floatString2[10];
     char lowerSideIndicatorChar = ' ';
     int trianglexPos;
+    int textyPos = 0;
+    int floatPrecision = 0;
+    int lowerSideIndicatorBoxHeight = 0;
 
 
-    // we draw first all white on black things ...
-    _tft.setColor(0, 255, 255, 255); // indedx 0 == white
-    _tft.setColor(1, 0, 0, 0); // index 1 == black
+    // Serial.println("_showData()");
+    _fb.createSprite(_tft.width(), 6 * _tft.fontHeight(GFXFF));
+    _fb.fillSprite(TFT_BLACK);
+    _fb.setFreeFont(FM12);
 
+
+    // now it's time for white on black ...
+    _fb.setTextColor(TFT_WHITE, TFT_BLACK, true);
 
     if (actDisplayData.lowerSideIndicator < 0) {
         lowerSideIndicatorChar = '<';
@@ -138,81 +138,85 @@ void CarbSyncDisplayLCD::_showData(bool firstrun) {
         lowerSideIndicatorChar = '=';
     }
 
-    if (firstrun) {
-        sprintf(text, "1 %c 2", lowerSideIndicatorChar);
+    sprintf(text, "1 %c 2", lowerSideIndicatorChar);
+    // _fb.drawString(text, (_tft.width()/2) - (_tft.textWidth(text)/2), scale_box_yPos + scale_box_height + 0*_tft.fontHeight(GFXFF), GFXFF);
+    _fb.drawString(text, (_fb.width()/2) - (_fb.textWidth(text)/2), textyPos, GFXFF);
+    textyPos += _tft.fontHeight(GFXFF);
+
+
+    if (actDisplayData.differencekPaValue > 100) {
+        floatPrecision = 0;
     } else {
-        sprintf(text, "%c", lowerSideIndicatorChar);
+        floatPrecision = 1;
     }
-    _tft.drawString((_tft.getWidth()/2)- (_tft.getStrWidth(text)/2), scale_box_yPos + scale_box_height + line_height, 0, text);
+    dtostrf(actDisplayData.differencekPaValue, 4, floatPrecision, floatString);
+    sprintf(text, "d %s kPa", floatString);
+    _fb.drawString(text, (_fb.width()/2) - (_fb.textWidth(text)/2), textyPos, GFXFF);
+    textyPos += _tft.fontHeight(GFXFF);
 
-
-    if (firstrun) {
-        sprintf(text, "d       kPa", actDisplayData.differencekPaValue);
+    if (actDisplayData.differenceADCValue > 100) {
+        floatPrecision = 0;
     } else {
-        dtostrf(actDisplayData.differencekPaValue, 4, 1, text);
+        floatPrecision = 1;
     }
-    _tft.drawString((_tft.getWidth()/2)- (_tft.getStrWidth(text)/2) -2, scale_box_yPos + scale_box_height + 2*line_height, 0, text);
+    dtostrf(actDisplayData.differenceADCValue, 4, floatPrecision, floatString);
+    sprintf(text, "d %s ADC", floatString);
+    _fb.drawString(text, (_fb.width()/2)- (_fb.textWidth(text)/2), textyPos, GFXFF);
+    textyPos += _tft.fontHeight(GFXFF);
+
+    textyPos += _tft.fontHeight(GFXFF);
+
+    dtostrf(actDisplayData.minkPaValue[0], 4, 1, floatString);
+    dtostrf(actDisplayData.minkPaValue[1], 4, 1, floatString2);
+    sprintf(text, "%s kPa %s", floatString, floatString2);
+    _fb.drawString(text, (_fb.width()/2) - (_fb.textWidth(text)/2), textyPos, GFXFF);
+    textyPos += _tft.fontHeight(GFXFF);
+
+    dtostrf(actualRPM, 4, 0, floatString);
+    sprintf(text, "%s RPM", floatString);
+    _fb.drawString(text, (_fb.width()/2) - (_fb.textWidth(text)/2), textyPos, GFXFF);
 
 
-    if (firstrun) {
-        sprintf(text, "d       ADC", actDisplayData.differenceADCValue);
-    } else {
-        dtostrf(actDisplayData.differenceADCValue, 4, 1, text);
-    }
-    _tft.drawString((_tft.getWidth()/2)- (_tft.getStrWidth(text)/2) -2, scale_box_yPos + scale_box_height + 3*line_height, 0, text);
-
-
-
-/*
-    if (firstrun) {
-    _tft.drawString((_tft.getWidth()/2)- (_tft.getStrWidth("kPa")/2) -2, scale_box_yPos + scale_box_height + 5*line_height, 0, "kPa");
-    }
-
-    dtostrf(actDisplayData.minkPaValue[0], 5, 1, text);
-    _tft.drawString(_tft.getWidth()- _tft.getStrWidth(text) -1, scale_box_yPos + scale_box_height + 5*line_height, 0, text);
-
-    dtostrf(actDisplayData.minkPaValue[1], 5, 1, text);
-    _tft.drawString(1, scale_box_yPos + scale_box_height + 5*line_height, 0, text);
-*/
-
+    _fb.pushSprite(0, scale_box_yPos + scale_box_height + _tft.fontHeight(GFXFF) / 2);
+    _fb.deleteSprite();
    
 
-    trianglexPos = map(actDisplayData.differenceADCValue, 0, actDisplayData.gaugeScaleFactor * 4, 0, _tft.getWidth()/2);
+    trianglexPos = map(actDisplayData.differencekPaValue, 0, actDisplayData.gaugeScaleFactor * 8, 0, _tft.width()/2);
 
     if (actDisplayData.lowerSideIndicator < 0) {
-        trianglexPos = (_tft.getWidth()/2) + trianglexPos;
+        trianglexPos = (_tft.width()/2) + trianglexPos;
     } else {
-        trianglexPos = (_tft.getWidth()/2) - trianglexPos;
+        trianglexPos = (_tft.width()/2) - trianglexPos;
     }
 
+    if (abs(trianglexPos - actDisplayData.lastIndicatorXPos) > 2) {
 
-    if (abs(trianglexPos - actDisplayData.lastIndicatorXPos) > 5) {
-
-        // "erase" triangle ...
-        _tft.drawTriangle(  actDisplayData.lastIndicatorXPos, scale_box_yPos + (scale_box_height/3) + 2, 
-                            actDisplayData.lastIndicatorXPos + 5, scale_box_yPos + scale_box_height -2, 
-                            actDisplayData.lastIndicatorXPos - 5, scale_box_yPos + scale_box_height -2);
+        lowerSideIndicatorBoxHeight = 2 * (scale_box_height/3);
+        _fb.createSprite(_tft.width(), lowerSideIndicatorBoxHeight);
+        _fb.fillSprite(TFT_WHITE);
+        _fb.setFreeFont(FM12);
 
         // now it's time for black on white ...
-        _tft.setColor(1, 255, 255, 255);    // indedx 1 == white
-        _tft.setColor(0, 0, 0, 0);          // index 0 == black
+        _fb.setTextColor(TFT_BLACK, TFT_WHITE, true);
+        // _tft.setTextColor(TFT_WHITE, TFT_BLACK, true);
 
-        sprintf(text, "x%3d", actDisplayData.gaugeScaleFactor);
-        _tft.drawString((_tft.getWidth()-1)- (_tft.getStrWidth(text)) , scale_box_yPos + scale_box_height -3, 0, text);
+        sprintf(text, "x%1d", actDisplayData.gaugeScaleFactor);
+        _fb.drawString(text, (_fb.width()-1)- (_fb.textWidth(text)) , _fb.height() - _fb.fontHeight(GFXFF) -1, GFXFF);
+
+        sprintf(text, "%1d/sec", measuresPerSec);
+        _fb.drawString(text, 1, _fb.height() - _fb.fontHeight(GFXFF) -1, GFXFF);
 
 
         actDisplayData.lastIndicatorXPos = trianglexPos;
-        _tft.drawTriangle(  trianglexPos, scale_box_yPos + (scale_box_height/3) + 2, 
-                            trianglexPos + 5, scale_box_yPos + scale_box_height -2, 
-                            trianglexPos - 5, scale_box_yPos + scale_box_height -2);
+        _fb.fillTriangle(  trianglexPos, 2, 
+                           trianglexPos + 10, lowerSideIndicatorBoxHeight -2, 
+                           trianglexPos - 10, lowerSideIndicatorBoxHeight -2, TFT_BLACK);
+
+        _fb.pushSprite(0, scale_box_yPos + (scale_box_height/3) + 1);
+        _fb.deleteSprite();
+
+        
     }
-
-/*
-    sprintf(text, "%3d", trianglexPos);
-    _tft.setColor(r, g, b);
-    _tft.drawString((_tft.getWidth()/2)- (_tft.getStrWidth(text)/2) -2, scale_box_yPos + scale_box_height + 4*line_height, 0, text);
-*/
-
 
 
 };
