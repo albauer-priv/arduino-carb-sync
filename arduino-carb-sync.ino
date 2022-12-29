@@ -10,28 +10,32 @@
  *   400 mV =  10 kPa
  * 4,650 mv = 115 kPa
  * 
- * we use a potential/ voltage divider (50:50 ratio), so the numbers we can read are divided by 2
+ * we use a potential/ voltage divider (1:2 ratio), so the numbers we can read are divided by 3 and multiplied by 2
  * 
 */
-#define MAP_SENSOR_MIN_MV        200  // 400.0
-#define MAP_SENSOR_MAX_MV        2325 // 4650.0
+#define MAP_SENSOR_MIN_MV        240  // 400
+#define MAP_SENSOR_MAX_MV        2650 // 4650
 #define MAP_SENSOR_MIN_KPA       10
 #define MAP_SENSOR_MAX_KPA       115
-#define MAP_SENSOR_REFERENCE_MV  4000 // 3300
+#define MAP_SENSOR_REFERENCE_MV  3300 // 3300
 
 
 
 #define ALPHA_SMOOTHING_RPM_VALUE 1
 #define ALPHA_SMOOTHING_ADC_VALUE 1
 
+#define NEW_ADC_VALUE_THRESHOLD 5
+#define MINIMUM_ADC_VALUE_THRESHOLD 10
+
 // resolution of ADC. Arduino typically 1024, esp8266 or esp32 4096
 #define ADC_RESOLUTION 4096
 
 
-#define DISPLAY_UPDATE_INTERVALL_MS 50
+#define DISPLAY_UPDATE_INTERVALL_MICROS 50000
 
-#define SERIAL_UPDATE_INTERVALL_MS 1000
-#define MEASURE_UPDATE_INTERVALL_MS 1000
+#define SERIAL_UPDATE_INTERVALL_MICROS 1000000
+#define MEASURE_UPDATE_INTERVALL_MICROS 1000000
+#define SENSOR_READING_INTERVALL_MICROS 400
 
 
 #define NUMBER_OF_CYLINDERS 2
@@ -42,6 +46,7 @@ CarbSyncDisplayLCD display;
 uint8_t sensorPins[] = {34, 27};
 
 unsigned long lastTimeStampDisplayUpdated = 0;
+unsigned long lastTimeStampSensorReading = 0;
 unsigned long lastTimeStampSerialUpdated = 0;
 unsigned long lastTimeStampMeasure = 0;
 unsigned long actTimeStamp = 0;
@@ -50,10 +55,11 @@ int measuresPerSec = 0;
 int analogReadValue = -1;
 
 
-
 void setup() {
   int maxSensorADCValueCalibration = 0;
   int cylinderSmoothedADCValue[NUMBER_OF_CYLINDERS];
+
+  display.setup();
 
   //set the resolution to 12 bits (0-4096)
   //set the resolution to 11 bits (0-2048)
@@ -67,7 +73,6 @@ void setup() {
 
   Serial.begin(230400);
   while(!Serial && !Serial.available()){}
-  // randomSeed(analogRead(0));
 
   for (int i=0; i<NUMBER_OF_CYLINDERS; i++) {
     cylinders[i].setBoardCharacteristics(ADC_RESOLUTION, MAP_SENSOR_REFERENCE_MV);
@@ -75,32 +80,42 @@ void setup() {
     cylinders[i].setMAPSensorOffset(0);
     cylinders[i].setSmoothingAlphaADC(ALPHA_SMOOTHING_ADC_VALUE);
     cylinders[i].setSmoothingAlphaRPM(ALPHA_SMOOTHING_RPM_VALUE);
+    cylinders[i].setMinimumADCValueThreshold(MINIMUM_ADC_VALUE_THRESHOLD);
+    cylinders[i].setNewADCValueThreshold(NEW_ADC_VALUE_THRESHOLD);
+    cylinders[i].disableAutomaticMeasurementStart();
+    cylinders[i].enableMeasurement();
   }
 
 
   // writeLogHeaderToSerial();
 
-  display.setup();
-  display.displaySyncScreen();
+  display.setupCalibrationScreen();
 
   // "calibrate" sensors ...
-  delay(500);
+  delay(1000);
 
   // for calibration we want a responsive smoothed ADC value ...
   // setting smoothing alpha to 50 ...
   for (int i=0; i<NUMBER_OF_CYLINDERS; i++) {
-    cylinders[i].setSmoothingAlphaADC(50);
+    cylinders[i].setSmoothingAlphaADC(20);
   }
 
 
-  for (int i=0; i<1000; i++) {
+  for (int i=0; i<=5000; i++) {
     for (int j=0; j < NUMBER_OF_CYLINDERS; j++) {
       analogReadValue = analogRead(sensorPins[j]);
       cylinders[j].setADCValue(analogReadValue);
-      // delay(2);
+    }
+
+    delayMicroseconds(50);
+
+    if ((i % 25) == 0) {
+      display.updateCalibrationScreen(cylinders, NUMBER_OF_CYLINDERS, i);
     }
   }
 
+  delay(3000);
+  display.destroyCalibrationScreen();
 
   for (int i=0; i < NUMBER_OF_CYLINDERS; i++) {
     cylinderSmoothedADCValue[i] = round(cylinders[i].getSmoothedADCValue());
@@ -120,41 +135,51 @@ void setup() {
     int cylinderADCValueOffset = maxSensorADCValueCalibration - cylinderSmoothedADCValue[i];
     cylinders[i].setMAPSensorOffset(cylinderADCValueOffset);
     cylinders[i].setSmoothingAlphaADC(ALPHA_SMOOTHING_ADC_VALUE);
+    cylinders[i].setAtmosphericPressureADCValue(maxSensorADCValueCalibration);
+    cylinders[i].enableAutomaticMeasurementStart();
+    cylinders[i].disableMeasurement();
 
     Serial.printf("Input: %d ADC offset val = %d \n",i, cylinderADCValueOffset);
   }
+
+  // display.setupSyncBarScreen();
+  display.toggleScreen();
 }
 
 
 void loop() {
 
+
   // delayMicroseconds(50);
+  actTimeStamp = micros();
 
-  for (int i=0; i< NUMBER_OF_CYLINDERS; i++) {
-    analogReadValue = analogRead(sensorPins[i]);
-    cylinders[i].setADCValue(analogReadValue);
+  if ((actTimeStamp - lastTimeStampSensorReading) > SENSOR_READING_INTERVALL_MICROS) {
+    for (int i=0; i< NUMBER_OF_CYLINDERS; i++) {
+      analogReadValue = analogRead(sensorPins[i]);
+      cylinders[i].setADCValue(analogReadValue);
 
-    delayMicroseconds(3);
-    // Serial.printf("Input: %d ADC mV = %d  val = %d\n",i, analogReadMilliVolts(sensorPins[i]), analogReadValue);
-    // Serial.printf("cylinder: %d ADC val = %d\n",i, cylinders[i].getActualADCValue());
-    // Serial.printf("cylinder: %d ADC val = %d\n",i, analogReadValue);
+      // delayMicroseconds(3);
+      // Serial.printf("Input: %d ADC mV = %d  val = %d\n",i, analogReadMilliVolts(sensorPins[i]), analogReadValue);
+      // Serial.printf("cylinder: %d ADC val = %d\n",i, cylinders[i].getActualADCValue());
+      // Serial.printf("cylinder: %d ADC val = %d\n",i, analogReadValue);
+    }
+    lastTimeStampSensorReading = actTimeStamp;
+    measures++;
   }
 
-  measures++;
 
-  actTimeStamp = millis();
-
-  if ((actTimeStamp - lastTimeStampDisplayUpdated) > DISPLAY_UPDATE_INTERVALL_MS) {
-    display.updateSyncScreen(cylinders, 2, measures);
+  if ((actTimeStamp - lastTimeStampDisplayUpdated) > DISPLAY_UPDATE_INTERVALL_MICROS) {
+    // display.updateSyncBarScreen(cylinders, 2, measuresPerSec);
+    display.updateScreen(cylinders, 2, measuresPerSec);
     lastTimeStampDisplayUpdated = actTimeStamp;
   }
 
-  if ((actTimeStamp - lastTimeStampSerialUpdated) > SERIAL_UPDATE_INTERVALL_MS) {
+  if ((actTimeStamp - lastTimeStampSerialUpdated) > SERIAL_UPDATE_INTERVALL_MICROS) {
     // writeLogDataToSerial();
     lastTimeStampSerialUpdated = actTimeStamp;
   }
 
-  if ((actTimeStamp - lastTimeStampMeasure) > MEASURE_UPDATE_INTERVALL_MS) {
+  if ((actTimeStamp - lastTimeStampMeasure) > MEASURE_UPDATE_INTERVALL_MICROS) {
     // Serial.print("measure per sec.: ");
     // Serial.println(measures);
     measuresPerSec = measures;

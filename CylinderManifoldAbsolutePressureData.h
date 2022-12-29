@@ -24,15 +24,6 @@
 #define CYLINDERMANIFOLDABSOLUTEPRESSUREDATA_H
 
 
-// ADC epsilon, minimum difference to consider ADC as potentially new minimum value
-#ifndef ADC_VALUE_EPSILON
-    #define ADC_VALUE_EPSILON 10
-#endif
-
-#ifndef ADC_CONSIDER_NEW_VALUE
-    #define ADC_CONSIDER_NEW_VALUE 4
-#endif
-
 
 
 class CylinderManifoldAbsolutePressureData {
@@ -48,19 +39,35 @@ class CylinderManifoldAbsolutePressureData {
 
         void setSmoothingAlphaADC (int alpha);
         void setSmoothingAlphaRPM (int alpha);
+
+        void setMinimumADCValueThreshold (int threshold);
+        void setNewADCValueThreshold (int threshold);
+
+        void setAtmosphericPressureADCValue (int adcValue);
+
+        void enableAutomaticMeasurementStart();
+        void disableAutomaticMeasurementStart();
+
+        void enableMeasurement();
+        void disableMeasurement();
+
         // void setSmoothingAlphaMAP (float alpha);
 
         void setADCValue (int newADCValue);
 
         int   getActualADCValue ();
         int   getMinimumADCValue ();
+        int   getMaximumADCValue ();
         float getSmoothedADCValue ();
         float getSmoothedMinimumADCValue ();
+        float getSmoothedMaximumADCValue ();
 
         float getMinimumMAPValueAskPa ();
         float getMAPValueAskPa ();
         float getSmoothedMinimumMAPValueAskPa ();
         float getSmoothedMAPValueAskPa ();
+        float getMaximumMAPValueAskPa ();
+        float getSmoothedMaximumMAPValueAskPa ();
 
         int getActualRPMValue ();
         int getSmoothedRPMValue ();
@@ -91,18 +98,32 @@ class CylinderManifoldAbsolutePressureData {
             int _lastADCValue;
             int _minimumADCValueCandidate;
             int _minimumADCValue;
+            int _maximumADCValueCandidate;
+            int _maximumADCValue;
+
             int _actualRPMValue;
             int _smoothingAlphaADC;
             int _smoothingAlphaRPM;
             // float _smoothingAlphaMAP;
             float _smoothedADCValue;
             float _smoothedMinimumADCValue;
+            float _smoothedMaximumADCValue;
             float _smoothedRPMValue;
             unsigned long   _minimumADCValueTimeStamp;
             bool _doCalculations;
             float _boardSensorFactor;
             bool _calcBoardSensorFactor;
         } measures;
+
+        struct Parameters {
+            int newADCValueThreshold;
+            int minimumADCValueThreshold;
+            int atmosphericADCValue;
+            int automaticMeasurementStartThreshold;
+            bool automaticMeasurementStart;
+            bool doMeasurement;
+        } params;
+
 
 };
 

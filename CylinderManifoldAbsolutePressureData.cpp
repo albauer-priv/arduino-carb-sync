@@ -22,19 +22,29 @@ CylinderManifoldAbsolutePressureData::CylinderManifoldAbsolutePressureData() {
     this->measures._boardSensorFactor = 0.0;
     this->measures._calcBoardSensorFactor = true;
 
+    this->params.minimumADCValueThreshold = 0;
+    this->params.newADCValueThreshold = 1;
+    this->params.atmosphericADCValue = 4096;
+    this->params.automaticMeasurementStartThreshold = 80;
+    this->params.automaticMeasurementStart = false;
+    this->params.doMeasurement = true;
+
     this->resetMeasures();
 }
 
 
 void CylinderManifoldAbsolutePressureData::resetMeasures() {
-    this->measures._minimumADCValueCandidate = 16384;
+    this->measures._minimumADCValueCandidate = 4096;
+    this->measures._maximumADCValueCandidate = 0;
     this->measures._actualRPMValue = 0;
     this->measures._doCalculations = false;
-    this->measures._smoothedADCValue = 0;
-    this->measures._smoothedRPMValue = 0;
-    this->measures._smoothedMinimumADCValue = 0;
+    this->measures._smoothedADCValue = 0.0;
+    this->measures._smoothedRPMValue = 0.0;
+    this->measures._smoothedMinimumADCValue = 0.0;
+    this->measures._smoothedMaximumADCValue = 0.0;
     this->measures._minimumADCValueTimeStamp = 0;
-    this->measures._minimumADCValue = 16384;
+    this->measures._minimumADCValue = 4096;
+    this->measures._maximumADCValue = 0;
     this->measures._actualADCValue = 0;
     this->measures._lastADCValue = 0;
 }
@@ -67,6 +77,20 @@ void CylinderManifoldAbsolutePressureData::setBoardCharacteristics (int stepsADC
 };
 
 
+void CylinderManifoldAbsolutePressureData::setMinimumADCValueThreshold (int threshold) {
+    this->params.minimumADCValueThreshold = threshold;
+};
+
+void CylinderManifoldAbsolutePressureData::setNewADCValueThreshold (int threshold) {
+    this->params.newADCValueThreshold = threshold;
+}
+
+
+void CylinderManifoldAbsolutePressureData::setAtmosphericPressureADCValue (int adcValue) {
+    this->params.atmosphericADCValue = adcValue;
+}
+
+
 void CylinderManifoldAbsolutePressureData::setSmoothingAlphaADC (int alpha) {
     this->measures._smoothingAlphaADC = alpha;
 };
@@ -84,6 +108,27 @@ void CylinderManifoldAbsolutePressureData::setSmoothingAlphaMAP (float alpha) {
 */
 
 
+void CylinderManifoldAbsolutePressureData::enableAutomaticMeasurementStart() {
+    this->params.automaticMeasurementStart = true;
+    disableMeasurement();
+};
+
+
+void CylinderManifoldAbsolutePressureData::disableAutomaticMeasurementStart() {
+    this->params.automaticMeasurementStart = false;
+};
+
+
+void CylinderManifoldAbsolutePressureData::enableMeasurement() {
+    this->params.doMeasurement = true;
+};
+
+
+void CylinderManifoldAbsolutePressureData::disableMeasurement() {
+    this->params.doMeasurement = false;
+};
+
+
 
 /**
  * set new ADC value and calculate other dependant values
@@ -93,10 +138,25 @@ void CylinderManifoldAbsolutePressureData::setADCValue(int newADCValue) {
 
     this->measures._actualADCValue = newADCValue + this->sensor.sensorADCOffset;
 
-
-    if (abs(this->measures._actualADCValue - this->measures._lastADCValue) <= ADC_CONSIDER_NEW_VALUE) {
+    // check if we should consider the new ADC value as new value ..
+    // if not abort ...
+    if (!(abs(this->measures._actualADCValue - this->measures._lastADCValue) > this->params.newADCValueThreshold)) {
         return;
     }
+
+    // if automatic measurement start is enabled and the actaul ADC value is below threshold, enable measurement ..
+    // threshold considers xx% of atmospheric pressure ADC value
+    if ( this->params.automaticMeasurementStart && 
+         (this->measures._actualADCValue < (this->params.atmosphericADCValue * this->params.automaticMeasurementStartThreshold / 100) )) {
+        enableMeasurement();
+    }
+
+    // checks if measurement is enabled ... if not abort ...
+    if (!this->params.doMeasurement) {
+        return;
+    }
+
+
 
     // Serial.printf("ADC val act = %d  last = %d\n",this->measures._actualADCValue, this->measures._lastADCValue);
 
@@ -106,13 +166,19 @@ void CylinderManifoldAbsolutePressureData::setADCValue(int newADCValue) {
     this->measures._smoothedADCValue =  (((100 - this->measures._smoothingAlphaADC) * this->measures._smoothedADCValue) + 
                                         (this->measures._smoothingAlphaADC * this->measures._actualADCValue)) / 100.0;
 
-    
+
+
+    // check if we have a new maximum ADC value candidate
+    if (this->measures._actualADCValue > this->measures._maximumADCValueCandidate) {
+        this->measures._maximumADCValueCandidate = this->measures._actualADCValue;
+    }
+
     // check if the new ADC value is smaller than the actual minimum value 
     // if it's smaller we found a new minimum
     if (this->measures._actualADCValue < this->measures._minimumADCValueCandidate) {
         this->measures._minimumADCValueCandidate = this->measures._actualADCValue;
         this->measures._doCalculations = true;
-    } else if (this->measures._actualADCValue > (this->measures._minimumADCValueCandidate + ADC_VALUE_EPSILON)) {
+    } else if (this->measures._actualADCValue > (this->measures._minimumADCValueCandidate + this->params.minimumADCValueThreshold)) {
     // here we know, that the new ADC value is larger than our actual ADC value
     // we assume, that a new cycle of the engine has started
     // and the last ADC value was a minimal ADC value
@@ -123,11 +189,16 @@ void CylinderManifoldAbsolutePressureData::setADCValue(int newADCValue) {
             this->measures._doCalculations = false;
 
             this->measures._minimumADCValue = this->measures._minimumADCValueCandidate;
+            this->measures._maximumADCValue = this->measures._maximumADCValueCandidate;
 
             this->measures._smoothedMinimumADCValue =   (((100 - this->measures._smoothingAlphaADC) * this->measures._smoothedMinimumADCValue) + 
                                                         (this->measures._smoothingAlphaADC * this->measures._minimumADCValue)) / 100.0;
 
+            this->measures._smoothedMaximumADCValue =   (((100 - this->measures._smoothingAlphaADC) * this->measures._smoothedMaximumADCValue) + 
+                                                        (this->measures._smoothingAlphaADC * this->measures._maximumADCValue)) / 100.0;
+
             this->measures._minimumADCValueCandidate = this->board.stepsADCValues;
+            this->measures._maximumADCValueCandidate = 0;
 
             actTimeStamp = millis();
 
@@ -172,6 +243,11 @@ int CylinderManifoldAbsolutePressureData::getMinimumADCValue() {
 };
 
 
+int CylinderManifoldAbsolutePressureData::getMaximumADCValue() {
+    return this->measures._maximumADCValue;
+};
+
+
 float CylinderManifoldAbsolutePressureData::getSmoothedADCValue() {
     return this->measures._smoothedADCValue;
 };
@@ -179,6 +255,11 @@ float CylinderManifoldAbsolutePressureData::getSmoothedADCValue() {
 
 float CylinderManifoldAbsolutePressureData::getSmoothedMinimumADCValue() {
     return this->measures._smoothedMinimumADCValue;
+};
+
+
+float CylinderManifoldAbsolutePressureData::getSmoothedMaximumADCValue() {
+    return this->measures._smoothedMaximumADCValue;
 };
 
 
@@ -204,6 +285,16 @@ float CylinderManifoldAbsolutePressureData::getMinimumMAPValueAskPa() {
     return float(this->measures._minimumADCValue) * this->measures._boardSensorFactor;
 };
 
+
+float CylinderManifoldAbsolutePressureData::getMaximumMAPValueAskPa() {
+    _dumpDataToSerial();
+    if (this->measures._calcBoardSensorFactor) {
+        _calculateBoardSensorFactor();
+    }
+    return float(this->measures._maximumADCValue) * this->measures._boardSensorFactor;
+};
+
+
 float CylinderManifoldAbsolutePressureData::getMAPValueAskPa() {
     _dumpDataToSerial();
     if (this->measures._calcBoardSensorFactor) {
@@ -227,6 +318,15 @@ float CylinderManifoldAbsolutePressureData::getSmoothedMinimumMAPValueAskPa() {
         _calculateBoardSensorFactor();
     }
     return this->measures._smoothedMinimumADCValue * this->measures._boardSensorFactor;
+};
+
+
+float CylinderManifoldAbsolutePressureData::getSmoothedMaximumMAPValueAskPa() {
+    _dumpDataToSerial();
+    if (this->measures._calcBoardSensorFactor) {
+        _calculateBoardSensorFactor();
+    }
+    return this->measures._smoothedMaximumADCValue * this->measures._boardSensorFactor;
 };
 
 
