@@ -31,7 +31,7 @@ class CylinderManifoldAbsolutePressureData {
         CylinderManifoldAbsolutePressureData();
 
         void resetMeasures();
-        void setMAPSensorCharacteristics (int minimummV, int maximummV, int minimumkPa, int maximumkPa);
+        void setMAPSensorCharacteristics (int minimummV, int maximummV, int minimumhPa, int maximumhPa);
         void setMAPSensorOffset (int offset);
         int  getMAPSensorOffset ();
 
@@ -62,12 +62,12 @@ class CylinderManifoldAbsolutePressureData {
         float getSmoothedMinimumADCValue ();
         float getSmoothedMaximumADCValue ();
 
-        float getMinimumMAPValueAskPa ();
-        float getMAPValueAskPa ();
-        float getSmoothedMinimumMAPValueAskPa ();
-        float getSmoothedMAPValueAskPa ();
-        float getMaximumMAPValueAskPa ();
-        float getSmoothedMaximumMAPValueAskPa ();
+        float getMinimumMAPValueAshPa ();
+        float getMAPValueAshPa ();
+        float getSmoothedMinimumMAPValueAshPa ();
+        float getSmoothedMAPValueAshPa ();
+        float getMaximumMAPValueAshPa ();
+        float getSmoothedMaximumMAPValueAshPa ();
 
         int getActualRPMValue ();
         int getSmoothedRPMValue ();
@@ -79,8 +79,8 @@ class CylinderManifoldAbsolutePressureData {
         void _calculateBoardSensorFactor();
 
         struct MAPSensor {
-            int minkPa;
-            int maxkPa;
+            int minhPa;
+            int maxhPa;
             int minmV;
             int maxmV;
             int sensorADCOffset;

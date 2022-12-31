@@ -71,13 +71,13 @@ class CarbSyncDisplayLCD {
         } _fb1PushCoords, _fb2PushCoords, _fb3PushCoords, _fb4PushCoords;
 
         struct displayData {
-            float minkPaValue[2];
-            float minSmoothedkPaValue[2];
-            float maxSmoothedkPaValue[2];
+            float minhPaValue[2];
+            float minSmoothedhPaValue[2];
+            float maxSmoothedhPaValue[2];
             float minSmoothedADCValue[2];
-            float smoothedkPaValue[2];
+            float smoothedhPaValue[2];
             float differenceADCValue;
-            float differencekPaValue;
+            float differencehPaValue;
             int lowerSideIndicator;
             int gaugeScaleFactor;
             int lastIndicatorXPos;

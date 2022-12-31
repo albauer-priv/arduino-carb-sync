@@ -15,8 +15,8 @@
 */
 #define MAP_SENSOR_MIN_MV        240  // 400
 #define MAP_SENSOR_MAX_MV        2650 // 4650
-#define MAP_SENSOR_MIN_KPA       10
-#define MAP_SENSOR_MAX_KPA       115
+#define MAP_SENSOR_MIN_HPA       100  // 10 kPa or 100 hPa
+#define MAP_SENSOR_MAX_HPA       1150 // 115 kPa or 1150 hPa
 #define MAP_SENSOR_REFERENCE_MV  3300 // 3300
 
 
@@ -76,7 +76,7 @@ void setup() {
 
   for (int i=0; i<NUMBER_OF_CYLINDERS; i++) {
     cylinders[i].setBoardCharacteristics(ADC_RESOLUTION, MAP_SENSOR_REFERENCE_MV);
-    cylinders[i].setMAPSensorCharacteristics(MAP_SENSOR_MIN_MV, MAP_SENSOR_MAX_MV, MAP_SENSOR_MIN_KPA, MAP_SENSOR_MAX_KPA);
+    cylinders[i].setMAPSensorCharacteristics(MAP_SENSOR_MIN_MV, MAP_SENSOR_MAX_MV, MAP_SENSOR_MIN_HPA, MAP_SENSOR_MAX_HPA);
     cylinders[i].setMAPSensorOffset(0);
     cylinders[i].setSmoothingAlphaADC(ALPHA_SMOOTHING_ADC_VALUE);
     cylinders[i].setSmoothingAlphaRPM(ALPHA_SMOOTHING_RPM_VALUE);
@@ -101,7 +101,7 @@ void setup() {
   }
 
 
-  for (int i=0; i<=5000; i++) {
+  for (int i=0; i<=8000; i++) {
     for (int j=0; j < NUMBER_OF_CYLINDERS; j++) {
       analogReadValue = analogRead(sensorPins[j]);
       cylinders[j].setADCValue(analogReadValue);
@@ -109,7 +109,7 @@ void setup() {
 
     delayMicroseconds(50);
 
-    if ((i % 25) == 0) {
+    if ((i % 80) == 0) {
       display.updateCalibrationScreen(cylinders, NUMBER_OF_CYLINDERS, i);
     }
   }
@@ -200,9 +200,9 @@ void writeLogHeaderToSerial() {
       Serial.print(i);
       Serial.print(";smoothedMinADC_");
       Serial.print(i);
-      Serial.print(";minMAPkPa_");
+      Serial.print(";minMAPhPa_");
       Serial.print(i);
-      Serial.print(";smoothedMinMAPkPa_");
+      Serial.print(";smoothedMinMAPhPa_");
       Serial.print(i);
     }
   Serial.println(";");
@@ -225,10 +225,10 @@ void writeLogDataToSerial() {
     Serial.print(cylinders[i].getSmoothedMinimumADCValue());
     Serial.print(";");
 
-    Serial.print(cylinders[i].getMinimumMAPValueAskPa());
+    Serial.print(cylinders[i].getMinimumMAPValueAshPa());
     Serial.print(";");
 
-    Serial.print(cylinders[i].getSmoothedMinimumMAPValueAskPa());
+    Serial.print(cylinders[i].getSmoothedMinimumMAPValueAshPa());
     Serial.print(";");
 
   }

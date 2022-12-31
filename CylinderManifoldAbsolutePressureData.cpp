@@ -6,8 +6,8 @@
  * Constructor. Initialize with some values ...
 */
 CylinderManifoldAbsolutePressureData::CylinderManifoldAbsolutePressureData() {
-    this->sensor.minkPa = 0;
-    this->sensor.maxkPa = 0;
+    this->sensor.minhPa = 0;
+    this->sensor.maxhPa = 0;
     this->sensor.minmV = 0;
     this->sensor.maxmV = 0;
     this->sensor.sensorADCOffset = 0;
@@ -50,11 +50,11 @@ void CylinderManifoldAbsolutePressureData::resetMeasures() {
 }
 
 
-void CylinderManifoldAbsolutePressureData::setMAPSensorCharacteristics (int minimummV, int maximummV, int minimumkPa, int maximumkPa) {
+void CylinderManifoldAbsolutePressureData::setMAPSensorCharacteristics (int minimummV, int maximummV, int minimumhPa, int maximumhPa) {
     this->sensor.minmV = minimummV;
     this->sensor.maxmV = maximummV;
-    this->sensor.minkPa = minimumkPa;
-    this->sensor.maxkPa = maximumkPa;
+    this->sensor.minhPa = minimumhPa;
+    this->sensor.maxhPa = maximumhPa;
     this->measures._calcBoardSensorFactor = true;
 };
 
@@ -267,7 +267,7 @@ void CylinderManifoldAbsolutePressureData::_calculateBoardSensorFactor() {
     float factor = 0.0;
 
     if ( (this->board.stepsADCValues > 0) && (this->sensor.maxmV > 0)) {
-        factor = float(this->board.refVoltagemV) / float(this->board.stepsADCValues) * float(this->sensor.maxkPa) / float(this->sensor.maxmV);
+        factor = float(this->board.refVoltagemV) / float(this->board.stepsADCValues) * float(this->sensor.maxhPa) / float(this->sensor.maxmV);
         // Serial.print("boardfactor: ");
         // Serial.println(factor);
     }
@@ -277,7 +277,7 @@ void CylinderManifoldAbsolutePressureData::_calculateBoardSensorFactor() {
 };
 
 
-float CylinderManifoldAbsolutePressureData::getMinimumMAPValueAskPa() {
+float CylinderManifoldAbsolutePressureData::getMinimumMAPValueAshPa() {
     _dumpDataToSerial();
     if (this->measures._calcBoardSensorFactor) {
         _calculateBoardSensorFactor();
@@ -286,7 +286,7 @@ float CylinderManifoldAbsolutePressureData::getMinimumMAPValueAskPa() {
 };
 
 
-float CylinderManifoldAbsolutePressureData::getMaximumMAPValueAskPa() {
+float CylinderManifoldAbsolutePressureData::getMaximumMAPValueAshPa() {
     _dumpDataToSerial();
     if (this->measures._calcBoardSensorFactor) {
         _calculateBoardSensorFactor();
@@ -295,7 +295,7 @@ float CylinderManifoldAbsolutePressureData::getMaximumMAPValueAskPa() {
 };
 
 
-float CylinderManifoldAbsolutePressureData::getMAPValueAskPa() {
+float CylinderManifoldAbsolutePressureData::getMAPValueAshPa() {
     _dumpDataToSerial();
     if (this->measures._calcBoardSensorFactor) {
         _calculateBoardSensorFactor();
@@ -303,7 +303,7 @@ float CylinderManifoldAbsolutePressureData::getMAPValueAskPa() {
     return float(this->measures._minimumADCValueCandidate) * this->measures._boardSensorFactor;
 };
 
-float CylinderManifoldAbsolutePressureData::getSmoothedMAPValueAskPa() {
+float CylinderManifoldAbsolutePressureData::getSmoothedMAPValueAshPa() {
     _dumpDataToSerial();
     if (this->measures._calcBoardSensorFactor) {
         _calculateBoardSensorFactor();
@@ -312,7 +312,7 @@ float CylinderManifoldAbsolutePressureData::getSmoothedMAPValueAskPa() {
 };
 
 
-float CylinderManifoldAbsolutePressureData::getSmoothedMinimumMAPValueAskPa() {
+float CylinderManifoldAbsolutePressureData::getSmoothedMinimumMAPValueAshPa() {
     _dumpDataToSerial();
     if (this->measures._calcBoardSensorFactor) {
         _calculateBoardSensorFactor();
@@ -321,7 +321,7 @@ float CylinderManifoldAbsolutePressureData::getSmoothedMinimumMAPValueAskPa() {
 };
 
 
-float CylinderManifoldAbsolutePressureData::getSmoothedMaximumMAPValueAskPa() {
+float CylinderManifoldAbsolutePressureData::getSmoothedMaximumMAPValueAshPa() {
     _dumpDataToSerial();
     if (this->measures._calcBoardSensorFactor) {
         _calculateBoardSensorFactor();
@@ -352,10 +352,10 @@ void CylinderManifoldAbsolutePressureData::_dumpDataToSerial() {
 
     Serial.println("--");
     Serial.println("Sensor:");
-    Serial.print("min kPa: ");
-    Serial.println(this->sensor.minkPa);
-    Serial.print("max kPa: ");
-    Serial.println(this->sensor.maxkPa);
+    Serial.print("min hPa: ");
+    Serial.println(this->sensor.minhPa);
+    Serial.print("max hPa: ");
+    Serial.println(this->sensor.maxhPa);
     Serial.print("min mv: ");
     Serial.println(this->sensor.minmV);
     Serial.print("max mv: ");

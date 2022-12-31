@@ -25,17 +25,17 @@ void CarbSyncDisplayLCD::setup() {
     actualScreen = -1;
 
     this->actDisplayData.differenceADCValue = 0.0;
-    this->actDisplayData.differencekPaValue = 0.0;
-    this->actDisplayData.minSmoothedkPaValue[0] = 0.0;
+    this->actDisplayData.differencehPaValue = 0.0;
+    this->actDisplayData.minSmoothedhPaValue[0] = 0.0;
     this->actDisplayData.minSmoothedADCValue[0] = 0.0;
-    this->actDisplayData.minSmoothedkPaValue[1] = 0.0;
+    this->actDisplayData.minSmoothedhPaValue[1] = 0.0;
     this->actDisplayData.minSmoothedADCValue[1] = 0.0;
-    this->actDisplayData.smoothedkPaValue[0] = 0.0;
-    this->actDisplayData.smoothedkPaValue[1] = 0.0;
-    this->actDisplayData.maxSmoothedkPaValue[0] = 0.0;
-    this->actDisplayData.maxSmoothedkPaValue[1] = 0.0;
-    this->actDisplayData.minkPaValue[0] = 0.0;
-    this->actDisplayData.minkPaValue[1] = 0.0;
+    this->actDisplayData.smoothedhPaValue[0] = 0.0;
+    this->actDisplayData.smoothedhPaValue[1] = 0.0;
+    this->actDisplayData.maxSmoothedhPaValue[0] = 0.0;
+    this->actDisplayData.maxSmoothedhPaValue[1] = 0.0;
+    this->actDisplayData.minhPaValue[0] = 0.0;
+    this->actDisplayData.minhPaValue[1] = 0.0;
     this->actDisplayData.lowerSideIndicator = 0;
     this->actDisplayData.gaugeScaleFactor = 1;
     this->actDisplayData.lastIndicatorXPos = 50;
@@ -70,25 +70,25 @@ void CarbSyncDisplayLCD::_updateInternalData(CylinderManifoldAbsolutePressureDat
     int i, j;
     bool exit = false;
 
-    this->actDisplayData.minkPaValue[0] = data[0].getMinimumMAPValueAskPa();
-    this->actDisplayData.minkPaValue[1] = data[1].getMinimumMAPValueAskPa();
-    this->actDisplayData.minSmoothedkPaValue[0] = data[0].getSmoothedMinimumMAPValueAskPa();
-    this->actDisplayData.minSmoothedkPaValue[1] = data[1].getSmoothedMinimumMAPValueAskPa();
+    this->actDisplayData.minhPaValue[0] = data[0].getMinimumMAPValueAshPa();
+    this->actDisplayData.minhPaValue[1] = data[1].getMinimumMAPValueAshPa();
+    this->actDisplayData.minSmoothedhPaValue[0] = data[0].getSmoothedMinimumMAPValueAshPa();
+    this->actDisplayData.minSmoothedhPaValue[1] = data[1].getSmoothedMinimumMAPValueAshPa();
     this->actDisplayData.minSmoothedADCValue[0] = data[0].getSmoothedMinimumADCValue();
     this->actDisplayData.minSmoothedADCValue[1] = data[1].getSmoothedMinimumADCValue();
     this->actDisplayData.differenceADCValue = abs(this->actDisplayData.minSmoothedADCValue[0] - this->actDisplayData.minSmoothedADCValue[1]);
-    this->actDisplayData.differencekPaValue = abs(this->actDisplayData.minSmoothedkPaValue[0] - this->actDisplayData.minSmoothedkPaValue[1]);
+    this->actDisplayData.differencehPaValue = abs(this->actDisplayData.minSmoothedhPaValue[0] - this->actDisplayData.minSmoothedhPaValue[1]);
 
-    this->actDisplayData.smoothedkPaValue[0] = data[0].getSmoothedMAPValueAskPa();
-    this->actDisplayData.smoothedkPaValue[1] = data[1].getSmoothedMAPValueAskPa();
+    this->actDisplayData.smoothedhPaValue[0] = data[0].getSmoothedMAPValueAshPa();
+    this->actDisplayData.smoothedhPaValue[1] = data[1].getSmoothedMAPValueAshPa();
 
-    this->actDisplayData.maxSmoothedkPaValue[0] = data[0].getSmoothedMaximumMAPValueAskPa();
-    this->actDisplayData.maxSmoothedkPaValue[1] = data[1].getSmoothedMaximumMAPValueAskPa();
+    this->actDisplayData.maxSmoothedhPaValue[0] = data[0].getSmoothedMaximumMAPValueAshPa();
+    this->actDisplayData.maxSmoothedhPaValue[1] = data[1].getSmoothedMaximumMAPValueAshPa();
 
 
-    if (this->actDisplayData.minSmoothedkPaValue[0] < this->actDisplayData.minSmoothedkPaValue[1]) {
+    if (this->actDisplayData.minSmoothedhPaValue[0] < this->actDisplayData.minSmoothedhPaValue[1]) {
         this->actDisplayData.lowerSideIndicator = -1;
-    } else if (this->actDisplayData.minSmoothedkPaValue[0] > this->actDisplayData.minSmoothedkPaValue[1]) {
+    } else if (this->actDisplayData.minSmoothedhPaValue[0] > this->actDisplayData.minSmoothedhPaValue[1]) {
         this->actDisplayData.lowerSideIndicator = 1;
     } else {
         this->actDisplayData.lowerSideIndicator = 0;
@@ -106,7 +106,7 @@ void CarbSyncDisplayLCD::_updateInternalData(CylinderManifoldAbsolutePressureDat
             this->actDisplayData.gaugeScaleFactor = scaleBase[j] * scaleMultiply[i];
             j++;
 
-            exit = round(this->actDisplayData.differencekPaValue) < (8*this->actDisplayData.gaugeScaleFactor);
+            exit = round(this->actDisplayData.differencehPaValue) < (8*this->actDisplayData.gaugeScaleFactor);
         }
         i++;
     }
@@ -364,13 +364,13 @@ void CarbSyncDisplayLCD::_displaySyncData(int measuresPerSec, int actualRPM) {
     textyPos += _fb1.fontHeight(GFXFF);
 
 
-    if (actDisplayData.differencekPaValue > 10) {
+    // if (actDisplayData.differencehPaValue > 10) {
         floatPrecision = 0;
-    } else {
-        floatPrecision = 1;
-    }
-    dtostrf(actDisplayData.differencekPaValue, 3, floatPrecision, floatString);
-    sprintf(text, "d %s kPa", floatString);
+    // } else {
+    //     floatPrecision = 1;
+    // }
+    dtostrf(actDisplayData.differencehPaValue, 2, floatPrecision, floatString);
+    sprintf(text, "d %s hPa", floatString);
     _fb1.drawString(text, (_fb1.width()/2) - (_fb1.textWidth(text)/2), textyPos, GFXFF);
     textyPos += _fb1.fontHeight(GFXFF);
 
@@ -379,16 +379,16 @@ void CarbSyncDisplayLCD::_displaySyncData(int measuresPerSec, int actualRPM) {
     } else {
         floatPrecision = 1;
     }
-    dtostrf(actDisplayData.differenceADCValue, 4, floatPrecision, floatString);
+    dtostrf(actDisplayData.differenceADCValue, 2, floatPrecision, floatString);
     sprintf(text, "d %s ADC", floatString);
     _fb1.drawString(text, (_fb1.width()/2)- (_fb1.textWidth(text)/2), textyPos, GFXFF);
     textyPos += _fb1.fontHeight(GFXFF);
 
     textyPos += _fb1.fontHeight(GFXFF);
 
-    dtostrf(actDisplayData.minkPaValue[0], 4, 1, floatString);
-    dtostrf(actDisplayData.minkPaValue[1], 4, 1, floatString2);
-    sprintf(text, "%s kPa %s", floatString, floatString2);
+    dtostrf(actDisplayData.minhPaValue[0], 3, 0, floatString);
+    dtostrf(actDisplayData.minhPaValue[1], 3, 0, floatString2);
+    sprintf(text, "%s hPa %s", floatString, floatString2);
     _fb1.drawString(text, (_fb1.width()/2) - (_fb1.textWidth(text)/2), textyPos, GFXFF);
     textyPos += _fb1.fontHeight(GFXFF);
 
@@ -400,7 +400,7 @@ void CarbSyncDisplayLCD::_displaySyncData(int measuresPerSec, int actualRPM) {
     _fb1.pushSprite(0, scale_box_yPos + scale_box_height + _tft.fontHeight(GFXFF) );
     // _fb.deleteSprite();
 
-    trianglexPos = map(actDisplayData.differencekPaValue, 0, actDisplayData.gaugeScaleFactor * 8, 0, _tft.width()/2);
+    trianglexPos = map(actDisplayData.differencehPaValue, 0, actDisplayData.gaugeScaleFactor * 8, 0, _tft.width()/2);
 
     if (actDisplayData.lowerSideIndicator < 0) {
         trianglexPos = (_tft.width()/2) + trianglexPos;
@@ -599,15 +599,15 @@ void CarbSyncDisplayLCD::updateSyncBarScreen(CylinderManifoldAbsolutePressureDat
 
 
     for (int i=0; i<2; i++) {
-        pLowValue = min(pLowValue, actDisplayData.minSmoothedkPaValue[i]);
-        pHighValue = max(pHighValue, actDisplayData.minSmoothedkPaValue[i]);
-        pAVGValue += actDisplayData.minSmoothedkPaValue[i];
+        pLowValue = min(pLowValue, actDisplayData.minSmoothedhPaValue[i]);
+        pHighValue = max(pHighValue, actDisplayData.minSmoothedhPaValue[i]);
+        pAVGValue += actDisplayData.minSmoothedhPaValue[i];
     }
     pAVGValue = pAVGValue / 2;
     pRange = pHighValue - pLowValue;
 
     for (int i=0; i<2; i++) {
-        barValue[i] = map(round((actDisplayData.minSmoothedkPaValue[i] * 10) - (pAVGValue * 10)), 0, actDisplayData.gaugeScaleFactor * 80, 0, _tft.width()/2);
+        barValue[i] = map(round(actDisplayData.minSmoothedhPaValue[i] - pAVGValue), 0, actDisplayData.gaugeScaleFactor * 4, 0, _tft.width()/2);
     }
 
 
@@ -618,9 +618,9 @@ void CarbSyncDisplayLCD::updateSyncBarScreen(CylinderManifoldAbsolutePressureDat
     Serial.print("p Range: ");
     Serial.println(pRange);
     Serial.print("p MinValue 0: ");
-    Serial.println(actDisplayData.minSmoothedkPaValue[0]);
+    Serial.println(actDisplayData.minSmoothedhPaValue[0]);
     Serial.print("p MinValue 1: ");
-    Serial.println(actDisplayData.minSmoothedkPaValue[1]);
+    Serial.println(actDisplayData.minSmoothedhPaValue[1]);
     Serial.print("BarValue 0: ");
     Serial.println(barValue[0]);
     Serial.print("BarValue 1: ");
@@ -652,27 +652,27 @@ void CarbSyncDisplayLCD::updateSyncBarScreen(CylinderManifoldAbsolutePressureDat
         _fb1.setTextDatum(ML_DATUM);
         _fb2.setTextDatum(ML_DATUM);
 
-        dtostrf(actDisplayData.minSmoothedkPaValue[0] - pAVGValue, 3, 1, floatString);
+        dtostrf(actDisplayData.minSmoothedhPaValue[0] - pAVGValue, 2, 0, floatString);
         sprintf(text, "1 %s", floatString);
         _fb1.drawString(text, 0, _fb1.height()/2, GFXFF);
 
-        dtostrf(actDisplayData.minSmoothedkPaValue[1] - pAVGValue, 3, 1, floatString);
+        dtostrf(actDisplayData.minSmoothedhPaValue[1] - pAVGValue, 2, 0, floatString);
         sprintf(text, "2 %s", floatString);
         _fb2.drawString(text, 0, _fb2.height()/2, GFXFF);
 
-        // _fb1.drawFloat(actDisplayData.minSmoothedkPaValue[0] - pAVGValue, 1, 0, _fb1.height()/2); 
-        // _fb2.drawFloat(actDisplayData.minSmoothedkPaValue[1] - pAVGValue, 1, 0, _fb2.height()/2); 
+        // _fb1.drawFloat(actDisplayData.minSmoothedhPaValue[0] - pAVGValue, 1, 0, _fb1.height()/2); 
+        // _fb2.drawFloat(actDisplayData.minSmoothedhPaValue[1] - pAVGValue, 1, 0, _fb2.height()/2); 
     }
 
 
-    if (actDisplayData.differencekPaValue > 10) {
+    // if (actDisplayData.differencehPaValue > 10) {
         floatPrecision = 0;
-    } else {
-        floatPrecision = 1;
-    }
+    //} else {
+    //    floatPrecision = 1;
+    //}
     _fb3.setTextDatum(TL_DATUM);
-    dtostrf(actDisplayData.differencekPaValue, 3, floatPrecision, floatString);
-    sprintf(text, "d %s kPa", floatString);
+    dtostrf(actDisplayData.differencehPaValue, 2, floatPrecision, floatString);
+    sprintf(text, "d %s hPa", floatString);
     _fb3.drawString(text, 2, 0, GFXFF);
     // textyPos += _fb3.fontHeight(GFXFF);
 
@@ -683,7 +683,12 @@ void CarbSyncDisplayLCD::updateSyncBarScreen(CylinderManifoldAbsolutePressureDat
 
 
     _fb4.setTextDatum(BL_DATUM);
-    sprintf(text, "x%1d", actDisplayData.gaugeScaleFactor);
+    if (actDisplayData.gaugeScaleFactor > 10) {
+        sprintf(text, "x%1d", actDisplayData.gaugeScaleFactor );
+    } else {
+        dtostrf(float(actDisplayData.gaugeScaleFactor) / 2.0, 2, 1, floatString);
+        sprintf(text, "x%s", floatString);
+    }
     _fb4.drawString(text, _fb4.width() - _fb4.textWidth(text) - 4, _fb4.height(), GFXFF);
 
     _fb4.setTextDatum(BL_DATUM);
@@ -816,7 +821,7 @@ void CarbSyncDisplayLCD::updateAbsolutePressureBarScreen(CylinderManifoldAbsolut
 
 
     for (int i=0; i<2; i++) {
-        barValue[i] = map(round(actDisplayData.minSmoothedkPaValue[i] * 10), 0, 1150, 0, _tft.width());
+        barValue[i] = map(round(actDisplayData.minSmoothedhPaValue[i]), 0, 1150, 0, _tft.width());
     }
 
 
@@ -827,27 +832,27 @@ void CarbSyncDisplayLCD::updateAbsolutePressureBarScreen(CylinderManifoldAbsolut
         _fb1.setTextDatum(ML_DATUM);
         _fb2.setTextDatum(ML_DATUM);
 
-        dtostrf(actDisplayData.minSmoothedkPaValue[0], 3, 1, floatString);
+        dtostrf(actDisplayData.minSmoothedhPaValue[0], 2, 0, floatString);
         sprintf(text, "1 %s", floatString);
         _fb1.drawString(text, 0, _fb1.height()/2, GFXFF);
 
-        dtostrf(actDisplayData.minSmoothedkPaValue[1], 3, 1, floatString);
+        dtostrf(actDisplayData.minSmoothedhPaValue[1], 2, 0, floatString);
         sprintf(text, "2 %s", floatString);
         _fb2.drawString(text, 0, _fb2.height()/2, GFXFF);
 
-        // _fb1.drawFloat(actDisplayData.minSmoothedkPaValue[0], 1, 0, _fb1.height()/2); 
-        // _fb2.drawFloat(actDisplayData.minSmoothedkPaValue[1], 1, 0, _fb2.height()/2); 
+        // _fb1.drawFloat(actDisplayData.minSmoothedhPaValue[0], 1, 0, _fb1.height()/2); 
+        // _fb2.drawFloat(actDisplayData.minSmoothedhPaValue[1], 1, 0, _fb2.height()/2); 
     }
 
 
-    if (actDisplayData.differencekPaValue > 10) {
+    // if (actDisplayData.differencehPaValue > 10) {
         floatPrecision = 0;
-    } else {
-        floatPrecision = 1;
-    }
+    //} else {
+    //    floatPrecision = 1;
+    //}
     _fb3.setTextDatum(TL_DATUM);
-    dtostrf(actDisplayData.differencekPaValue, 3, floatPrecision, floatString);
-    sprintf(text, "d %s kPa", floatString);
+    dtostrf(actDisplayData.differencehPaValue, 2, floatPrecision, floatString);
+    sprintf(text, "d %s hPa", floatString);
     _fb3.drawString(text, 2, 0, GFXFF);
 
     _fb3.setTextDatum(TL_DATUM);
@@ -983,8 +988,8 @@ void CarbSyncDisplayLCD::updateMinMaxPressureBarScreen(CylinderManifoldAbsoluteP
 
 
     for (int i=0; i<2; i++) {
-        lowBarValue[i] = map(round(actDisplayData.minSmoothedkPaValue[i] * 10), 0, 1150, 0, _tft.width());
-        highBarValue[i] = map(round(actDisplayData.maxSmoothedkPaValue[i] * 10), 0, 1150, 0, _tft.width());
+        lowBarValue[i] = map(round(actDisplayData.minSmoothedhPaValue[i]), 0, 1150, 0, _tft.width());
+        highBarValue[i] = map(round(actDisplayData.maxSmoothedhPaValue[i]), 0, 1150, 0, _tft.width());
     }
 
 
@@ -1003,19 +1008,19 @@ void CarbSyncDisplayLCD::updateMinMaxPressureBarScreen(CylinderManifoldAbsoluteP
         sprintf(text, "2 %s", floatString);
         _fb2.drawString(text, 0, _fb2.height()/2, GFXFF);
 
-        // _fb1.drawFloat(actDisplayData.minSmoothedkPaValue[0], 1, 0, _fb1.height()/2); 
-        // _fb2.drawFloat(actDisplayData.minSmoothedkPaValue[1], 1, 0, _fb2.height()/2); 
+        // _fb1.drawFloat(actDisplayData.minSmoothedhPaValue[0], 1, 0, _fb1.height()/2); 
+        // _fb2.drawFloat(actDisplayData.minSmoothedhPaValue[1], 1, 0, _fb2.height()/2); 
     }
 
 
-    if (actDisplayData.differencekPaValue > 10) {
+    // if (actDisplayData.differencehPaValue > 10) {
         floatPrecision = 0;
-    } else {
-        floatPrecision = 1;
-    }
+    // } else {
+    //     floatPrecision = 1;
+    // }
     _fb3.setTextDatum(TL_DATUM);
-    dtostrf(actDisplayData.differencekPaValue, 3, floatPrecision, floatString);
-    sprintf(text, "d %s kPa", floatString);
+    dtostrf(actDisplayData.differencehPaValue, 2, floatPrecision, floatString);
+    sprintf(text, "d %s hPa", floatString);
     _fb3.drawString(text, 2, 0, GFXFF);
 
     _fb3.setTextDatum(TL_DATUM);
